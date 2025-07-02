@@ -10,25 +10,57 @@ const Productos = () => {
   const [filtroNombre, setFiltroNombre] = useState("");
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("todas");
 
+  const [paginaActual, setPaginaActual] = useState(1);
+  const productosPorPagina = 8;
+
   useEffect(() => {
-    // Cargar productos
-    fetch(API_PRODUCTOS)
-      .then(res => res.json())
-      .then(setProductos)
-      .catch(err => console.error("Error al cargar productos:", err));
+    const inputBuscar = document.getElementById("inputBuscar");
+    const btnLupa = document.querySelector(".busqueda-toggle");
 
-    // Cargar categorías
-    fetch(API_CATEGORIAS)
-      .then(res => res.json())
-      .then(setCategorias)
-      .catch(err => console.error("Error al cargar categorías:", err));
+    if (inputBuscar && btnLupa) {
+      inputBuscar.style.display = "none"; // Oculto al inicio
+      inputBuscar.placeholder = "Buscar producto...";
 
-    // Modo oscuro desde localStorage
-    const dark = localStorage.getItem('dark-mode') === 'true';
-    document.body.classList.toggle('dark-mode', dark);
+      const mostrarBuscar = () => {
+        const visible = inputBuscar.style.display === "inline-block";
+        inputBuscar.style.display = visible ? "none" : "inline-block";
+        if (!visible) inputBuscar.focus();
+      };
 
-    actualizarContadorCarrito();
+      const handlerInput = (e) => {
+        setFiltroNombre(e.target.value.toLowerCase());
+        setPaginaActual(1);
+      };
+
+      btnLupa.addEventListener("click", mostrarBuscar);
+      inputBuscar.addEventListener("input", handlerInput);
+
+      return () => {
+        btnLupa.removeEventListener("click", mostrarBuscar);
+        inputBuscar.removeEventListener("input", handlerInput);
+      };
+    }
   }, []);
+
+  useEffect(() => {
+  cargarDatos();
+  const dark = localStorage.getItem('dark-mode') === 'true';
+  document.body.classList.toggle('dark-mode', dark);
+  actualizarContadorCarrito();
+}, []);
+
+const cargarDatos = () => {
+  fetch(API_PRODUCTOS)
+    .then(res => res.json())
+    .then(setProductos)
+    .catch(err => console.error("Error al cargar productos:", err));
+
+  fetch(API_CATEGORIAS)
+    .then(res => res.json())
+    .then(setCategorias)
+    .catch(err => console.error("Error al cargar categorías:", err));
+};
+
 
   const actualizarContadorCarrito = () => {
     let carrito = JSON.parse(sessionStorage.getItem("carrito")) || [];
@@ -42,10 +74,12 @@ const Productos = () => {
 
   const handleCategoriaChange = (e) => {
     setCategoriaSeleccionada(e.target.value);
+    setPaginaActual(1);
   };
 
   const handleFiltroNombre = (e) => {
     setFiltroNombre(e.target.value.toLowerCase());
+    setPaginaActual(1);
   };
 
   const animarProductoAlCarrito = (id) => {
@@ -106,6 +140,38 @@ const Productos = () => {
     .filter(p => categoriaSeleccionada === "todas" || String(p.CAT_ID) === categoriaSeleccionada)
     .filter(p => p.PRD_NOMBRE.toLowerCase().includes(filtroNombre));
 
+  const totalPaginas = Math.ceil(productosFiltrados.length / productosPorPagina);
+  const inicio = (paginaActual - 1) * productosPorPagina;
+  const productosPagina = productosFiltrados.slice(inicio, inicio + productosPorPagina);
+
+  const renderPaginacion = () => (
+    <div className="d-flex justify-content-center my-3 flex-wrap gap-2">
+      <button className="btn btn-outline-secondary"
+        disabled={paginaActual === 1}
+        onClick={() => setPaginaActual(paginaActual - 1)}
+      >
+        Anterior
+      </button>
+
+      {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+        <button
+          key={num}
+          className={`btn ${num === paginaActual ? "btn-secondary" : "btn-outline-secondary"}`}
+          onClick={() => setPaginaActual(num)}
+        >
+          {num}
+        </button>
+      ))}
+
+      <button className="btn btn-outline-secondary"
+        disabled={paginaActual === totalPaginas}
+        onClick={() => setPaginaActual(paginaActual + 1)}
+      >
+        Siguiente
+      </button>
+    </div>
+  );
+
   return (
     <div className="content">
       <div className="seccion-productos-3d">
@@ -132,11 +198,43 @@ const Productos = () => {
             ))}
           </select>
         </div>
-        <input type="text" placeholder="Buscar por nombre..." onChange={handleFiltroNombre} className="form-busqueda ms-3" />
+        <input
+  type="text"
+  id="inputBuscar"
+  placeholder="Buscar por nombre..."
+  className="form-busqueda ms-3"
+  autoComplete="off"
+/>
+
+            {filtroNombre && (
+  <div className="sugerencias-busqueda">
+    {productos
+      .filter(p => p.PRD_NOMBRE.toLowerCase().includes(filtroNombre))
+      .slice(0, 5)
+      .map(p => (
+        <div
+          key={p.PRD_ID}
+          className="sugerencia-item"
+          onClick={() => {
+            const nombre = p.PRD_NOMBRE;
+            setFiltroNombre(nombre.toLowerCase());
+            document.getElementById("inputBuscar").value = nombre;
+          }}
+        >
+          {p.PRD_NOMBRE}
+        </div>
+      ))}
+  </div>
+)}
+
+
       </div>
 
-      <div id="productos-container" className="contenedor_productos mt-4">
-        {productosFiltrados.map(p => (
+      {/* Paginación arriba */}
+      {renderPaginacion()}
+
+      <div id="productos-container" className="contenedor_productos mt-3">
+        {productosPagina.map(p => (
           <div key={p.PRD_ID} className="tarjeta_producto" data-nombre={p.PRD_NOMBRE}>
             <img src={p.PRD_IMAGEN} alt={p.PRD_NOMBRE} />
             <h3>{p.PRD_NOMBRE}</h3>
@@ -151,6 +249,9 @@ const Productos = () => {
           </div>
         ))}
       </div>
+
+      {/* Paginación abajo */}
+      {renderPaginacion()}
     </div>
   );
 };
