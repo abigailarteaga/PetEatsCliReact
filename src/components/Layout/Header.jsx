@@ -8,9 +8,9 @@ const Header = () => {
     document.head.appendChild(script);
 
     // Lógica hamburguesa y búsqueda
-    import('/Users/USUARIO/peteats-react/src/Busqueda.js');
-    import('/Users/USUARIO/peteats-react/src/menu.js');
-    import('/Users/USUARIO/peteats-react/src/shared.js');
+    import('../../shared.js');
+    import('../../menu.js');
+    import('../../shared.js');
   }, []);
 
   return (
